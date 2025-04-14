@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/toolbarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/white"
+        android:elevation="4dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/titleTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Currency Converter"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_marginStart="16dp" />
+
+        <ImageButton
+            android:id="@+id/editButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Edit currencies"
+            android:src="@drawable/ic_edit"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/settingsButton"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_marginEnd="8dp" />
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Settings"
+            android:src="@drawable/ic_settings"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_marginEnd="16dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/currencyRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/calculatorLayout"
+        app:layout_constraintTop_toBottomOf="@+id/toolbarLayout"
+        tools:listitem="@layout/item_currency" />
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        app:layout_constraintBottom_toTopOf="@+id/calculatorLayout" />
+
+    <!-- Calculator Layout -->
+    <LinearLayout
+        android:id="@+id/calculatorLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <!-- Calculator row 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/buttonAC"
+                style="@style/CalculatorButton"
+                android:text="AC" />
+
+            <Button
+                android:id="@+id/buttonClear"
+                style="@style/CalculatorButton"
+                android:text="⌫" />
+
+            <Button
+                android:id="@+id/buttonPercent"
+                style="@style/CalculatorButton"
+                android:text="%" />
+
+            <Button
+                android:id="@+id/buttonDivide"
+                style="@style/CalculatorButtonOperation"
+                android:text="÷" />
+        </LinearLayout>
+
+        <!-- Calculator row 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button7"
+                style="@style/CalculatorButton"
+                android:text="7" />
+
+            <Button
+                android:id="@+id/button8"
+                style="@style/CalculatorButton"
+                android:text="8" />
+
+            <Button
+                android:id="@+id/button9"
+                style="@style/CalculatorButton"
+                android:text="9" />
+
+            <Button
+                android:id="@+id/buttonMultiply"
+                style="@style/CalculatorButtonOperation"
+                android:text="×" />
+        </LinearLayout>
+
+        <!-- Calculator row 3 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button4"
+                style="@style/CalculatorButton"
+                android:text="4" />
+
+            <Button
+                android:id="@+id/button5"
+                style="@style/CalculatorButton"
+                android:text="5" />
+
+            <Button
+                android:id="@+id/button6"
+                style="@style/CalculatorButton"
+                android:text="6" />
+
+            <Button
+                android:id="@+id/buttonMinus"
+                style="@style/CalculatorButtonOperation"
+                android:text="-" />
+        </LinearLayout>
+
+        <!-- Calculator row 4 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button1"
+                style="@style/CalculatorButton"
+                android:text="1" />
+
+            <Button
+                android:id="@+id/button2"
+                style="@style/CalculatorButton"
+                android:text="2" />
+
+            <Button
+                android:id="@+id/button3"
+                style="@style/CalculatorButton"
+                android:text="3" />
+
+            <Button
+                android:id="@+id/buttonPlus"
+                style="@style/CalculatorButtonOperation"
+                android:text="+" />
+        </LinearLayout>
+
+        <!-- Calculator row 5 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/buttonDot"
+                style="@style/CalculatorButton"
+                android:text="." />
+
+            <Button
+                android:id="@+id/button0"
+                style="@style/CalculatorButton"
+                android:text="0" />
+
+            <Button
+                android:id="@+id/buttonDown"
+                style="@style/CalculatorButton"
+                android:text="↓" />
+
+            <Button
+                android:id="@+id/buttonEquals"
+                style="@style/CalculatorButtonOperation"
+                android:text="=" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/lastUpdateTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Last update: 4/14/2025, 1:01:52 AM"
+        android:textSize="12sp"
+        android:textColor="#757575"
+        android:layout_marginBottom="4dp"
+        app:layout_constraintBottom_toTopOf="@+id/calculatorLayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
