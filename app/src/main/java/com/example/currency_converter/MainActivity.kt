@@ -198,14 +198,31 @@ class MainActivity : AppCompatActivity() {
      * @return Созданный диалог.
      */
     private fun createAddCurrencyDialog(): Dialog {
-        val dialog = Dialog(this)
+        val dialog = Dialog(this, R.style.CurrencyDialogTheme)
         dialog.setContentView(R.layout.dialog_add_currency)
 
-        // Устанавливаем размеры диалога
-        dialog.window?.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT
-        )
+        // Устанавливаем параметры окна
+        dialog.window?.apply {
+            // Используем MATCH_PARENT для ширины и WRAP_CONTENT для высоты
+            setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+
+            // Устанавливаем полупрозрачный фон за диалогом
+            setDimAmount(0.5f)
+
+            // Центрируем диалог
+            setGravity(android.view.Gravity.CENTER)
+
+            // Устанавливаем отступы от краев экрана
+            attributes.apply {
+                horizontalMargin = 0.05f // 5% от ширины экрана с каждой стороны
+            }
+
+            // Добавляем анимацию
+            attributes.windowAnimations = android.R.style.Animation_Dialog
+        }
 
         return dialog
     }
