@@ -14,7 +14,11 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 /**
- * Репозиторий для работы с валютами, курсами обмена и пользовательскими предпочтениями.
+ * Repository class for handling currency-related operations including:
+ * - Managing available currencies
+ * - Handling selected currencies
+ * - Fetching and caching exchange rates
+ * - Performing currency conversions
  */
 class CurrencyRepository(
     private val database: CurrencyDatabase,
@@ -23,47 +27,46 @@ class CurrencyRepository(
     private val exchangeRatesDao: ExchangeRatesDao = database.exchangeRatesDao()
     private val selectedCurrenciesDao: SelectedCurrenciesDao = database.selectedCurrenciesDao()
 
-    // Кэш для обменных курсов (для быстрого доступа)
+    // Cache for exchange rates to improve performance
     private var cachedExchangeRates: Map<String, Double>? = null
 
-    // Базовая валюта по умолчанию
+    // Default base currency for exchange rates
     private val defaultBaseCurrency = "USD"
 
     /**
-     * Получает список всех доступных валют.
-     * @return Список валют приложения.
+     * Retrieves the list of all available currencies in the application
+     * @return List of available currencies
      */
     fun getAvailableCurrencies(): List<Currency> = AVAILABLE_CURRENCIES
 
     /**
-     * Получает информацию о валюте по её коду.
-     * @param code Код валюты.
-     * @return Объект валюты или null, если валюта не найдена.
+     * Finds a currency by its code
+     * @param code Currency code to search for
+     * @return Currency object if found, null otherwise
      */
     fun getCurrencyByCode(code: String): Currency? {
         return AVAILABLE_CURRENCIES.find { it.code == code }
     }
 
     /**
-     * Получает список выбранных пользователем валют.
-     * @return Список выбранных валют, отсортированный по позиции.
+     * Retrieves the list of user-selected currencies
+     * @return List of selected currencies sorted by position
      */
     suspend fun getSelectedCurrencies(): List<Currency> = withContext(Dispatchers.IO) {
         try {
             val selectedEntities = selectedCurrenciesDao.getSelectedCurrencies()
 
-            // Если нет выбранных валют, добавляем валюты по умолчанию
+            // If no currencies are selected, add default currencies
             if (selectedEntities.isEmpty()) {
                 return@withContext addDefaultCurrencies()
             }
 
-            // Иначе возвращаем выбранные валюты в правильном порядке
+            // Return selected currencies in correct order
             return@withContext AVAILABLE_CURRENCIES
                 .filter { currency ->
                     selectedEntities.any { entity -> entity.currencyCode == currency.code }
                 }
                 .map { currency ->
-                    // Находим позицию из сущности
                     val entityPosition = selectedEntities.find {
                         it.currencyCode == currency.code
                     }?.position ?: Int.MAX_VALUE
@@ -81,8 +84,8 @@ class CurrencyRepository(
     }
 
     /**
-     * Добавляет валюты по умолчанию, если нет выбранных.
-     * @return Список добавленных валют по умолчанию.
+     * Adds default currencies if none are selected
+     * @return List of default currencies
      */
     private suspend fun addDefaultCurrencies(): List<Currency> = withContext(Dispatchers.IO) {
         val defaultCurrencyCodes = listOf("USD", "EUR", "GBP")
@@ -108,8 +111,9 @@ class CurrencyRepository(
     }
 
     /**
-     * Добавляет валюту в список выбранных.
-     * @param currencyCode Код добавляемой валюты.
+     * Adds a currency to the list of selected currencies
+     * @param currencyCode Code of the currency to add
+     * @return true if successful, false otherwise
      */
     suspend fun addCurrencyToSelected(currencyCode: String) = withContext(Dispatchers.IO) {
         try {
@@ -126,8 +130,9 @@ class CurrencyRepository(
     }
 
     /**
-     * Удаляет валюту из списка выбранных.
-     * @param currencyCode Код удаляемой валюты.
+     * Removes a currency from the list of selected currencies
+     * @param currencyCode Code of the currency to remove
+     * @return true if successful, false otherwise
      */
     suspend fun removeCurrencyFromSelected(currencyCode: String) = withContext(Dispatchers.IO) {
         try {
@@ -140,31 +145,31 @@ class CurrencyRepository(
     }
 
     /**
-     * Загружает актуальные обменные курсы с API.
-     * @param baseCurrency Базовая валюта для курсов (по умолчанию USD).
-     * @return Результат с картой обменных курсов или ошибкой.
+     * Fetches the latest exchange rates from the API
+     * @param baseCurrency Base currency for rates (defaults to USD)
+     * @return Result containing either the rates map or an error
      */
     suspend fun fetchLatestRates(baseCurrency: String = defaultBaseCurrency): Result<Map<String, Double>> {
         return withContext(Dispatchers.IO) {
             try {
-                // В реальном приложении делаем вызов API
-                // Сейчас используем моковые данные
+                // In a real application, this would make an API call
+                // Currently using mock data
                 val rates = getMockExchangeRates()
 
-                // Кэшируем курсы в БД
+                // Cache rates in the database
                 val entities = rates.map { (code, rate) ->
                     ExchangeRateEntity(code, rate, System.currentTimeMillis())
                 }
                 exchangeRatesDao.insertAllRates(entities)
 
-                // Обновляем локальный кэш
+                // Update local cache
                 cachedExchangeRates = rates
 
                 Result.success(rates)
             } catch (e: Exception) {
                 Timber.e(e, "Error fetching latest rates")
 
-                // Если API не сработал, пробуем получить кэшированные курсы
+                // If API fails, try to get cached rates
                 val cachedRates = getCachedRates()
                 if (cachedRates.isNotEmpty()) {
                     Result.success(cachedRates)
@@ -176,8 +181,8 @@ class CurrencyRepository(
     }
 
     /**
-     * Получает кэшированные курсы из базы данных.
-     * @return Карта курсов валют.
+     * Retrieves cached exchange rates from the database
+     * @return Map of currency codes to exchange rates
      */
     private suspend fun getCachedRates(): Map<String, Double> = withContext(Dispatchers.IO) {
         cachedExchangeRates?.let { return@withContext it }
@@ -194,8 +199,8 @@ class CurrencyRepository(
     }
 
     /**
-     * Проверяет, нужно ли обновлять курсы (старше 6 часов).
-     * @return true, если нужно обновление, иначе false.
+     * Checks if exchange rates need to be updated (older than 6 hours)
+     * @return true if update is needed, false otherwise
      */
     suspend fun needsRateUpdate(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -204,16 +209,16 @@ class CurrencyRepository(
             System.currentTimeMillis() - lastUpdate > sixHoursInMillis
         } catch (e: Exception) {
             Timber.e(e, "Error checking if rates need update")
-            true // при ошибке лучше обновить
+            true // Better to update on error
         }
     }
 
     /**
-     * Конвертирует сумму из одной валюты в другую.
-     * @param amount Конвертируемая сумма.
-     * @param fromCurrency Исходная валюта.
-     * @param toCurrency Целевая валюта.
-     * @return Сконвертированная сумма.
+     * Converts an amount from one currency to another
+     * @param amount Amount to convert
+     * @param fromCurrency Source currency code
+     * @param toCurrency Target currency code
+     * @return Converted amount
      */
     suspend fun convertCurrency(
         amount: Double,
@@ -225,17 +230,17 @@ class CurrencyRepository(
         try {
             val rates = getCachedRates()
 
-            // Получаем курсы относительно базовой валюты
+            // Get rates relative to base currency
             val fromRate = rates[fromCurrency] ?: 1.0
             val toRate = rates[toCurrency] ?: 1.0
 
-            // Проверяем корректность курсов
+            // Validate rates
             if (fromRate <= 0) {
                 Timber.w("Invalid exchange rate for $fromCurrency: $fromRate")
                 return@withContext 0.0
             }
 
-            // Конвертируем и округляем до 2 знаков
+            // Convert and round to 2 decimal places
             val convertedAmount = amount * (toRate / fromRate)
             return@withContext (Math.round(convertedAmount * 100) / 100.0)
         } catch (e: Exception) {
@@ -245,8 +250,8 @@ class CurrencyRepository(
     }
 
     /**
-     * Возвращает моковые обменные курсы для тестирования.
-     * @return Карта обменных курсов.
+     * Provides mock exchange rates for testing purposes
+     * @return Map of currency codes to mock exchange rates
      */
     private fun getMockExchangeRates(): Map<String, Double> {
         return mapOf(
@@ -264,7 +269,7 @@ class CurrencyRepository(
 
     companion object {
         /**
-         * Список доступных валют приложения.
+         * List of available currencies in the application
          */
         private val AVAILABLE_CURRENCIES = listOf(
             Currency("USD", "US Dollar", "$", R.drawable.flag_usa),

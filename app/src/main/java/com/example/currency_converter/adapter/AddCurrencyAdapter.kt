@@ -9,8 +9,11 @@ import com.example.currency_converter.databinding.ItemAddCurrencyBinding
 import com.example.currency_converter.model.Currency
 
 /**
- * Адаптер для диалога добавления/удаления валют.
- * @param onCheckChanged Callback вызываемый при изменении состояния чекбокса.
+ * Adapter for the currency selection dialog that handles adding and removing currencies.
+ * Implements ListAdapter for efficient list updates using DiffUtil.
+ * 
+ * @param onCheckChanged Callback triggered when a currency's selection state changes.
+ *        First parameter is the selected currency, second parameter is the new selection state.
  */
 class AddCurrencyAdapter(
     private val onCheckChanged: (Currency, Boolean) -> Unit
@@ -30,7 +33,8 @@ class AddCurrencyAdapter(
     }
 
     /**
-     * ViewHolder для элемента списка добавления валют.
+     * ViewHolder class for currency items in the selection list.
+     * Handles the UI binding and user interactions for individual currency items.
      */
     class AddCurrencyViewHolder(
         private val binding: ItemAddCurrencyBinding,
@@ -40,32 +44,35 @@ class AddCurrencyAdapter(
         private var currentCurrency: Currency? = null
 
         init {
-            // Обработка изменения состояния чекбокса
+            // Set up checkbox state change listener
             binding.checkBox.setOnCheckedChangeListener { _, isChecked ->
                 currentCurrency?.let { onCheckChanged(it, isChecked) }
             }
 
-            // Обработка клика по всему элементу для переключения чекбокса
+            // Enable whole item click to toggle checkbox
             binding.root.setOnClickListener {
                 binding.checkBox.isChecked = !binding.checkBox.isChecked
             }
         }
 
         /**
-         * Привязывает данные валюты к элементам интерфейса.
+         * Binds currency data to the view elements.
+         * Updates the UI with currency information and selection state.
+         * 
+         * @param currency The currency data to display
          */
         fun bind(currency: Currency) {
             currentCurrency = currency
 
             with(binding) {
-                // Загрузка изображения флага
+                // Set currency flag image
                 flagImageView.setImageResource(currency.flagResId)
 
-                // Установка текстовых полей
+                // Set currency information text
                 currencyCodeTextView.text = currency.code
                 currencyNameTextView.text = currency.name
 
-                // Установка состояния чекбокса без вызова слушателя
+                // Update checkbox state without triggering the listener
                 checkBox.setOnCheckedChangeListener(null)
                 checkBox.isChecked = currency.isSelected
                 checkBox.setOnCheckedChangeListener { _, isChecked ->
@@ -76,7 +83,8 @@ class AddCurrencyAdapter(
     }
 
     /**
-     * DiffUtil для оптимизации обновлений списка.
+     * DiffUtil callback implementation for efficient list updates.
+     * Determines how to handle changes in the currency list.
      */
     object AddCurrencyDiffCallback : DiffUtil.ItemCallback<Currency>() {
         override fun areItemsTheSame(oldItem: Currency, newItem: Currency): Boolean {
