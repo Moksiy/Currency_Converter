@@ -2,8 +2,8 @@ package com.example.currency_converter
 
 import android.app.Dialog
 import android.os.Bundle
-import android.view.WindowManager
 import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -16,19 +16,22 @@ import com.example.currency_converter.databinding.ActivityMainBinding
 import com.example.currency_converter.model.Calculator
 import com.example.currency_converter.viewmodel.CurrencyViewModel
 import com.google.android.material.button.MaterialButton
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Main activity that displays the currency converter and calculator.
+ * Главная активность приложения, которая отображает конвертер валют и калькулятор.
  */
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: CurrencyViewModel by viewModels()
     private lateinit var currencyAdapter: CurrencyAdapter
+
+    // Калькулятор использует функцию обратного вызова для обновления суммы активной валюты
     private val calculator = Calculator(onResultChanged = { result ->
-        viewModel.updateCurrencyAmount(result)
+        updateActiveCurrencyAmount(result)
     })
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,23 +43,56 @@ class MainActivity : AppCompatActivity() {
         setupCalculatorButtons()
         setupUIComponents()
         observeViewModel()
+
+        // Запрашиваем обновление курсов при старте
+        viewModel.fetchLatestRates()
     }
 
+    /**
+     * Настраивает RecyclerView для списка валют.
+     */
     private fun setupCurrencyRecyclerView() {
         currencyAdapter = CurrencyAdapter { currency ->
+            // Когда пользователь выбирает валюту, устанавливаем её как активную
             viewModel.setActiveCurrency(currency.code)
+
+            // Визуально отмечаем активную валюту в адаптере
+            currencyAdapter.setActiveCurrency(currency.code)
+
+            // Обновляем дисплей калькулятора текущим значением валюты
             calculator.setDisplay(currency.amount.toString())
+
+            // Показываем пользователю, какая валюта стала активной
+            Toast.makeText(
+                this,
+                getString(R.string.active_currency_message, currency.code),
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         binding.currencyRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = currencyAdapter
+            // Добавляем анимацию при изменении элементов
+            itemAnimator?.changeDuration = 150
         }
     }
 
+    /**
+     * Обновляет сумму для активной валюты через ViewModel.
+     * @param amount Новая сумма.
+     */
+    private fun updateActiveCurrencyAmount(amount: Double) {
+        Timber.d("Updating active currency amount: $amount")
+        viewModel.updateCurrencyAmount(amount)
+    }
+
+    /**
+     * Настраивает кнопки калькулятора.
+     */
     private fun setupCalculatorButtons() {
         with(binding) {
-            // Number buttons
+            // Цифровые кнопки
             button0.setOnClickListener { calculator.appendDigit("0") }
             button1.setOnClickListener { calculator.appendDigit("1") }
             button2.setOnClickListener { calculator.appendDigit("2") }
@@ -69,7 +105,7 @@ class MainActivity : AppCompatActivity() {
             button9.setOnClickListener { calculator.appendDigit("9") }
             buttonDot.setOnClickListener { calculator.appendDot() }
 
-            // Operation buttons
+            // Кнопки операций
             buttonPlus.setOnClickListener { calculator.setOperation("+") }
             buttonMinus.setOnClickListener { calculator.setOperation("-") }
             buttonMultiply.setOnClickListener { calculator.setOperation("×") }
@@ -77,67 +113,107 @@ class MainActivity : AppCompatActivity() {
             buttonPercent.setOnClickListener { calculator.calculatePercent() }
             buttonEquals.setOnClickListener { calculator.calculateResult() }
 
-            // Clear buttons
+            // Кнопки очистки
             buttonAC.setOnClickListener { calculator.clearAll() }
             buttonClear.setOnClickListener { calculator.clearLastDigit() }
         }
     }
 
+    /**
+     * Настраивает дополнительные элементы интерфейса.
+     */
     private fun setupUIComponents() {
-        // Edit button to add/remove currencies
+        // Кнопка редактирования списка валют
         binding.editButton.setOnClickListener {
             showAddCurrencyDialog()
         }
 
-        // Settings button
+        // Кнопка настроек
         binding.settingsButton.setOnClickListener {
             Toast.makeText(this, getString(R.string.settings_coming_soon), Toast.LENGTH_SHORT).show()
         }
 
-        // Update last update text
-        val dateFormat = SimpleDateFormat(getString(R.string.date_format), Locale.getDefault())
-        binding.lastUpdateTextView.text = getString(R.string.last_update_format, dateFormat.format(Date()))
+        // Обновляем текст последнего обновления
+        updateLastUpdateText()
     }
 
+    /**
+     * Обновляет текст времени последнего обновления курсов.
+     */
+    private fun updateLastUpdateText() {
+        val dateFormat = SimpleDateFormat(getString(R.string.date_format), Locale.getDefault())
+        val date = Date(viewModel.lastUpdateTime.value ?: System.currentTimeMillis())
+        binding.lastUpdateTextView.text = getString(R.string.last_update_format, dateFormat.format(date))
+    }
+
+    /**
+     * Настраивает наблюдателей LiveData из ViewModel.
+     */
     private fun observeViewModel() {
-        // Observe selected currencies
+        // Наблюдаем за списком выбранных валют
         viewModel.selectedCurrencies.observe(this) { currencies ->
+            Timber.d("Received updated currencies: ${currencies.map { "${it.code}=${it.amount}" }}")
             currencyAdapter.submitList(currencies)
+
+            // Если есть активная валюта, отмечаем её в адаптере
+            viewModel.getActiveCurrencyCode().let { activeCode ->
+                if (activeCode.isNotEmpty()) {
+                    currencyAdapter.setActiveCurrency(activeCode)
+                }
+            }
         }
 
-        // Observe loading state
+        // Наблюдаем за состоянием загрузки
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         }
 
-        // Observe errors
+        // Наблюдаем за ошибками
         viewModel.error.observe(this) { errorMessage ->
             errorMessage?.takeIf { it.isNotEmpty() }?.let {
                 Toast.makeText(this, it, Toast.LENGTH_LONG).show()
                 viewModel.clearError()
             }
         }
+
+        // Наблюдаем за временем последнего обновления курсов
+        viewModel.lastUpdateTime.observe(this) { timestamp ->
+            if (timestamp > 0) {
+                updateLastUpdateText()
+            }
+        }
     }
 
+    /**
+     * Показывает диалог добавления/удаления валют.
+     */
     private fun showAddCurrencyDialog() {
         val dialog = createAddCurrencyDialog()
         setupAddCurrencyDialogViews(dialog)
         dialog.show()
     }
 
+    /**
+     * Создает диалог добавления/удаления валют.
+     * @return Созданный диалог.
+     */
     private fun createAddCurrencyDialog(): Dialog {
         val dialog = Dialog(this)
         dialog.setContentView(R.layout.dialog_add_currency)
 
-        // Set dialog width
+        // Устанавливаем размеры диалога
         dialog.window?.setLayout(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT
         )
 
         return dialog
     }
 
+    /**
+     * Настраивает элементы интерфейса в диалоге добавления валют.
+     * @param dialog Диалог для настройки.
+     */
     private fun setupAddCurrencyDialogViews(dialog: Dialog) {
         val recyclerView: RecyclerView = dialog.findViewById(R.id.addCurrencyRecyclerView)
         val searchView: SearchView = dialog.findViewById(R.id.searchView)
@@ -147,28 +223,50 @@ class MainActivity : AppCompatActivity() {
         setupAddCurrencySearch(searchView, recyclerView.adapter as AddCurrencyAdapter)
 
         confirmButton.setOnClickListener {
+            // Обновляем курсы после изменения списка валют
+            viewModel.fetchLatestRates()
             dialog.dismiss()
         }
     }
 
+    /**
+     * Настраивает RecyclerView для списка всех доступных валют.
+     * @param recyclerView RecyclerView для настройки.
+     */
     private fun setupAddCurrencyRecyclerView(recyclerView: RecyclerView) {
         val allCurrencies = viewModel.availableCurrencies.value.orEmpty()
 
         val adapter = AddCurrencyAdapter { currency, isChecked ->
-            if (isChecked) viewModel.addCurrency(currency.code)
-            else viewModel.removeCurrency(currency.code)
+            if (isChecked) {
+                viewModel.addCurrency(currency.code)
+            } else {
+                // Проверяем, не удаляет ли пользователь активную валюту
+                if (currency.code == viewModel.getActiveCurrencyCode()) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.removing_active_currency),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                viewModel.removeCurrency(currency.code)
+            }
         }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
-        // Update selection state according to current selection
+        // Обновляем состояние выбора в соответствии с текущим выбором
         val updatedCurrencies = allCurrencies.map { currency ->
             currency.copy(isSelected = viewModel.isCurrencySelected(currency.code))
         }
         adapter.submitList(updatedCurrencies)
     }
 
+    /**
+     * Настраивает поиск в диалоге добавления валют.
+     * @param searchView View для поиска.
+     * @param adapter Адаптер для фильтрации.
+     */
     private fun setupAddCurrencySearch(
         searchView: SearchView,
         adapter: AddCurrencyAdapter

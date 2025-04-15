@@ -11,14 +11,14 @@ import com.example.currency_converter.model.Currency
 import com.example.currency_converter.network.RetrofitClient
 import com.example.currency_converter.repository.CurrencyRepository
 import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.text.DecimalFormat
 import java.text.NumberFormat
 import java.util.Locale
 
 /**
- * ViewModel that manages currency data, conversions and user preferences.
+ * ViewModel для управления валютами, конвертацией и пользовательскими настройками.
  */
 class CurrencyViewModel(application: Application) : AndroidViewModel(application) {
     // Repository layer
@@ -40,6 +40,9 @@ class CurrencyViewModel(application: Application) : AndroidViewModel(application
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
+    private val _lastUpdateTime = MutableLiveData<Long>()
+    val lastUpdateTime: LiveData<Long> = _lastUpdateTime
+
     // Business logic state
     private val decimalFormat = (NumberFormat.getNumberInstance(Locale.getDefault()) as DecimalFormat).apply {
         applyPattern("#,##0.00")
@@ -49,48 +52,36 @@ class CurrencyViewModel(application: Application) : AndroidViewModel(application
 
     // Coroutine exception handler
     private val errorHandler = CoroutineExceptionHandler { _, exception ->
+        Timber.e(exception, "Error in ViewModel coroutine")
         _error.postValue("Error: ${exception.localizedMessage ?: exception.message ?: "Unknown error"}")
         _isLoading.postValue(false)
     }
 
     init {
-        loadAllCurrencies()
+        Timber.d("CurrencyViewModel initialized")
+        loadAvailableCurrencies()
         loadSelectedCurrencies()
-        fetchLatestRates()
     }
 
     /**
-     * Clears the current error message.
+     * Очищает текущее сообщение об ошибке.
      */
     fun clearError() {
         _error.value = ""
     }
 
     /**
-     * Loads user selected currencies from preferences.
+     * Возвращает код активной валюты.
+     * @return Код активной валюты.
      */
-    private fun loadSelectedCurrencies() {
-        launchWithErrorHandling {
-            val selectedCodes = prefsManager.getSelectedCurrencies()
-            val allCurrencies = repository.getAvailableCurrencies()
-
-            val selectedCurrencies = allCurrencies
-                .filter { it.code in selectedCodes }
-                .map { it.copy(isSelected = true) }
-
-            _selectedCurrencies.postValue(selectedCurrencies)
-
-            // Set first currency as active if available
-            if (selectedCurrencies.isNotEmpty()) {
-                activeCurrencyCode = selectedCurrencies[0].code
-            }
-        }
+    fun getActiveCurrencyCode(): String {
+        return activeCurrencyCode
     }
 
     /**
-     * Loads all available currencies.
+     * Загружает список всех доступных валют.
      */
-    private fun loadAllCurrencies() {
+    private fun loadAvailableCurrencies() {
         launchWithErrorHandling {
             val allCurrencies = repository.getAvailableCurrencies()
             val selectedCodes = prefsManager.getSelectedCurrencies()
@@ -100,124 +91,201 @@ class CurrencyViewModel(application: Application) : AndroidViewModel(application
             }
 
             _availableCurrencies.postValue(updatedCurrencies)
+            Timber.d("Loaded ${updatedCurrencies.size} available currencies")
         }
     }
 
     /**
-     * Fetches latest exchange rates from the API.
+     * Загружает выбранные пользователем валюты из настроек.
+     */
+    private fun loadSelectedCurrencies() {
+        launchWithErrorHandling {
+            val selectedCodes = prefsManager.getSelectedCurrencies()
+
+            // Если нет выбранных валют, добавляем базовые
+            if (selectedCodes.isEmpty()) {
+                addDefaultCurrencies()
+                return@launchWithErrorHandling
+            }
+
+            val allCurrencies = repository.getAvailableCurrencies()
+
+            val selectedCurrencies = allCurrencies
+                .filter { it.code in selectedCodes }
+                .map { it.copy(isSelected = true) }
+
+            _selectedCurrencies.postValue(selectedCurrencies)
+            Timber.d("Loaded ${selectedCurrencies.size} selected currencies")
+
+            // Устанавливаем первую валюту как активную, если есть
+            if (selectedCurrencies.isNotEmpty()) {
+                activeCurrencyCode = selectedCurrencies[0].code
+                Timber.d("Set active currency to: $activeCurrencyCode")
+            }
+        }
+    }
+
+    /**
+     * Добавляет базовые валюты по умолчанию, если у пользователя ничего не выбрано.
+     */
+    private fun addDefaultCurrencies() {
+        val defaultCurrencies = listOf("USD", "EUR", "GBP")
+        Timber.d("Adding default currencies: $defaultCurrencies")
+
+        defaultCurrencies.forEach {
+            prefsManager.addCurrency(it)
+        }
+        loadSelectedCurrencies()
+    }
+
+    /**
+     * Загружает последние обменные курсы с API.
      */
     fun fetchLatestRates() {
         launchWithErrorHandling {
             _isLoading.postValue(true)
+            Timber.d("Fetching latest rates")
 
-            // TODO: Replace mock data with actual API call
-            // For development only - mock data
-            fetchMockExchangeRates()
+            try {
+                // Загружаем курсы из репозитория (в реальном приложении - из API)
+                val result = repository.fetchLatestRates()
 
-            _isLoading.postValue(false)
+                if (result.isSuccess) {
+                    Timber.d("Successfully fetched exchange rates")
+                    _lastUpdateTime.postValue(System.currentTimeMillis())
+
+                    // Если есть активная валюта с суммой, обновляем конвертацию
+                    val currentCurrencies = _selectedCurrencies.value
+                    val activeCurrency = currentCurrencies?.find { it.code == activeCurrencyCode }
+
+                    if (activeCurrency != null && activeCurrency.amount > 0) {
+                        Timber.d("Updating conversions for active currency: ${activeCurrency.code}, amount: ${activeCurrency.amount}")
+                        updateCurrencyAmount(activeCurrency.amount)
+                    }
+                } else {
+                    val exception = result.exceptionOrNull()
+                    Timber.e(exception, "Failed to fetch exchange rates")
+                    _error.postValue("Failed to update rates: ${exception?.message}")
+                }
+            } finally {
+                _isLoading.postValue(false)
+            }
         }
     }
 
     /**
-     * Temporary method to provide mock exchange rates.
-     * Should be removed in production.
-     */
-    private suspend fun fetchMockExchangeRates() {
-        // Simulate network delay
-        delay(500)
-
-        // This should be replaced with actual API call in production
-        /* Example:
-        val rates = repository.fetchLatestRates("USD")
-        _exchangeRates.postValue(rates)
-        */
-    }
-
-    /**
-     * Adds a currency to the selected list.
-     * @param currencyCode The code of the currency to add.
+     * Добавляет валюту в список выбранных.
+     * @param currencyCode Код валюты для добавления.
      */
     fun addCurrency(currencyCode: String) {
+        Timber.d("Adding currency: $currencyCode")
         prefsManager.addCurrency(currencyCode)
         refreshCurrencyLists()
     }
 
     /**
-     * Removes a currency from the selected list.
-     * @param currencyCode The code of the currency to remove.
+     * Удаляет валюту из списка выбранных.
+     * @param currencyCode Код валюты для удаления.
      */
     fun removeCurrency(currencyCode: String) {
+        // Не даем удалить последнюю валюту
+        val selectedCodes = prefsManager.getSelectedCurrencies()
+        if (selectedCodes.size <= 1) {
+            _error.value = "Cannot remove the last currency"
+            Timber.w("Attempted to remove last currency: $currencyCode")
+            return
+        }
+
+        Timber.d("Removing currency: $currencyCode")
+
+        // Если удаляем активную валюту, переключаемся на другую
+        if (currencyCode == activeCurrencyCode) {
+            val newActiveCurrency = selectedCodes.firstOrNull { it != currencyCode } ?: DEFAULT_CURRENCY_CODE
+            Timber.d("Active currency removed. Switching from $activeCurrencyCode to $newActiveCurrency")
+            activeCurrencyCode = newActiveCurrency
+        }
+
         prefsManager.removeCurrency(currencyCode)
         refreshCurrencyLists()
     }
 
     /**
-     * Checks if a currency is selected by the user.
-     * @param currencyCode The code of the currency to check.
-     * @return True if the currency is selected, false otherwise.
+     * Проверяет, выбрана ли валюта пользователем.
+     * @param currencyCode Код валюты для проверки.
+     * @return true если валюта выбрана, иначе false.
      */
     fun isCurrencySelected(currencyCode: String): Boolean {
         return prefsManager.isCurrencySelected(currencyCode)
     }
 
     /**
-     * Refreshes both currency lists after user preference changes.
+     * Обновляет оба списка валют после изменения настроек.
      */
     private fun refreshCurrencyLists() {
-        loadAllCurrencies()
+        Timber.d("Refreshing currency lists")
+        loadAvailableCurrencies()
         loadSelectedCurrencies()
     }
 
     /**
-     * Sets the active currency for input.
-     * @param currencyCode The code of the currency to set as active.
+     * Устанавливает активную валюту для ввода.
+     * @param currencyCode Код валюты для установки активной.
      */
     fun setActiveCurrency(currencyCode: String) {
         activeCurrencyCode = currencyCode
+        Timber.d("Active currency set to: $currencyCode")
     }
 
     /**
-     * Updates the amount for the active currency and converts to all others.
-     * @param amount The new amount for the active currency.
+     * Обновляет сумму для активной валюты и конвертирует для всех остальных.
+     * @param amount Новая сумма для активной валюты.
      */
     fun updateCurrencyAmount(amount: Double) {
         launchWithErrorHandling {
             val currentCurrencies = _selectedCurrencies.value ?: return@launchWithErrorHandling
 
+            Timber.d("Updating currencies. Active: $activeCurrencyCode, Amount: $amount")
+
+            // Создаем новый список для обновления
             val updatedCurrencies = currentCurrencies.map { currency ->
                 if (currency.code == activeCurrencyCode) {
+                    // Для активной валюты используем введенную сумму напрямую
                     currency.copy(amount = amount)
                 } else {
+                    // Для других валют конвертируем из активной
                     val convertedAmount = repository.convertCurrency(
                         amount,
                         activeCurrencyCode,
                         currency.code
                     )
+                    Timber.d("Converted ${currency.code}: $convertedAmount (from $activeCurrencyCode: $amount)")
                     currency.copy(amount = convertedAmount)
                 }
             }
 
+            // Обновляем LiveData с новым списком
             _selectedCurrencies.postValue(updatedCurrencies)
         }
     }
 
     /**
-     * Formats a currency amount for display.
-     * @param amount The amount to format.
-     * @return Formatted string representation of the amount.
+     * Форматирует сумму для отображения.
+     * @param amount Сумма для форматирования.
+     * @return Отформатированная строка с суммой.
      */
     fun formatAmount(amount: Double): String {
         return decimalFormat.format(amount)
     }
 
     /**
-     * Helper method to launch coroutines with error handling.
+     * Вспомогательный метод для запуска корутин с обработкой ошибок.
      */
     private fun launchWithErrorHandling(block: suspend () -> Unit) {
         viewModelScope.launch(errorHandler) {
             try {
                 block()
             } catch (e: Exception) {
+                Timber.e(e, "Error in ViewModel coroutine")
                 _error.postValue("Error: ${e.localizedMessage ?: e.message ?: "Unknown error"}")
             }
         }

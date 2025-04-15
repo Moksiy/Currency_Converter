@@ -1,8 +1,10 @@
 package com.example.currency_converter.model
 
+import timber.log.Timber
+
 /**
- * Calculator class that handles calculator operations for currency conversion.
- * @param onResultChanged Callback that will be invoked when the calculator result changes.
+ * Класс калькулятора для выполнения арифметических операций с валютами.
+ * @param onResultChanged Callback вызываемый при изменении результата расчета.
  */
 class Calculator(private val onResultChanged: (Double) -> Unit) {
     private val currentInput = StringBuilder()
@@ -11,32 +13,72 @@ class Calculator(private val onResultChanged: (Double) -> Unit) {
     private var secondOperand: Double = 0.0
     private var isOperationClicked = false
 
+    // Максимальное количество десятичных знаков
+    private val MAX_DECIMAL_PLACES = 8
+
+    // Максимальное количество цифр до десятичной точки
+    private val MAX_INTEGER_DIGITS = 12
+
     /**
-     * Sets the display to the specified value.
-     * @param value The value to display.
+     * Устанавливает значение в дисплей калькулятора.
+     * @param value Новое значение.
      */
     fun setDisplay(value: String) {
+        Timber.d("Setting calculator display to: $value")
         currentInput.clear()
         currentInput.append(value)
         notifyResultChanged()
     }
 
     /**
-     * Appends a digit to the current input.
-     * @param digit The digit to append.
+     * Добавляет цифру к текущему вводу.
+     * @param digit Добавляемая цифра (0-9).
      */
     fun appendDigit(digit: String) {
+        // Если предыдущей операцией был клик по операции, очищаем ввод
         if (isOperationClicked) {
             currentInput.clear()
             isOperationClicked = false
         }
 
-        currentInput.append(digit)
+        // Проверка превышения максимального количества цифр
+        val hasDot = currentInput.contains(".")
+        val integerPartLength = if (hasDot) {
+            currentInput.indexOf(".")
+        } else {
+            currentInput.length
+        }
+
+        if (integerPartLength >= MAX_INTEGER_DIGITS && !hasDot) {
+            Timber.d("Maximum integer digits reached: $MAX_INTEGER_DIGITS")
+            return
+        }
+
+        // Если уже есть десятичная точка, проверяем количество знаков после неё
+        if (hasDot) {
+            val decimalPlaces = currentInput.length - currentInput.indexOf(".") - 1
+            if (decimalPlaces >= MAX_DECIMAL_PLACES) {
+                Timber.d("Maximum decimal places reached: $MAX_DECIMAL_PLACES")
+                return
+            }
+        }
+
+        // Не позволяем начинать с нескольких нулей
+        if (currentInput.isEmpty() && digit == "0") {
+            currentInput.append(digit)
+        } else if (currentInput.toString() == "0" && digit != ".") {
+            // Если текущий ввод только "0", заменяем его на вводимую цифру
+            currentInput.clear()
+            currentInput.append(digit)
+        } else {
+            currentInput.append(digit)
+        }
+
         notifyResultChanged()
     }
 
     /**
-     * Appends a decimal point to the current input if not already present.
+     * Добавляет десятичную точку к текущему вводу.
      */
     fun appendDot() {
         if (isOperationClicked) {
@@ -45,6 +87,7 @@ class Calculator(private val onResultChanged: (Double) -> Unit) {
             isOperationClicked = false
         }
 
+        // Добавляем точку только если её еще нет
         if (!currentInput.contains(".")) {
             if (currentInput.isEmpty()) {
                 currentInput.append("0")
@@ -55,58 +98,90 @@ class Calculator(private val onResultChanged: (Double) -> Unit) {
     }
 
     /**
-     * Sets the operation to be performed.
-     * @param operation The operation symbol ("+", "-", "×", "÷").
+     * Устанавливает операцию для выполнения.
+     * @param operation Символ операции ("+", "-", "×", "÷").
      */
     fun setOperation(operation: String) {
         if (currentInput.isNotEmpty()) {
             firstOperand = currentInput.toString().toDoubleOrNull() ?: 0.0
             currentOperation = operation
             isOperationClicked = true
+            Timber.d("Operation set: $operation, First operand: $firstOperand")
+        } else if (operation == "-" && currentInput.isEmpty()) {
+            // Позволяем ввести отрицательное число
+            currentInput.append("-")
+            notifyResultChanged()
         }
     }
 
     /**
-     * Calculates the percentage of the current value.
+     * Вычисляет процент от текущего значения.
      */
     fun calculatePercent() {
         if (currentInput.isNotEmpty()) {
             val currentValue = currentInput.toString().toDoubleOrNull() ?: 0.0
             val result = currentValue / 100
             currentInput.clear()
-            currentInput.append(result.toString())
+            currentInput.append(formatResult(result))
             notifyResultChanged()
+            Timber.d("Percent calculated: $currentValue -> $result")
         }
     }
 
     /**
-     * Calculates the result of the operation.
+     * Выполняет расчет в соответствии с текущей операцией.
      */
     fun calculateResult() {
         if (currentInput.isNotEmpty() && currentOperation != null) {
             secondOperand = currentInput.toString().toDoubleOrNull() ?: 0.0
+            Timber.d("Calculating result: $firstOperand $currentOperation $secondOperand")
 
             val result = when (currentOperation) {
                 "+" -> firstOperand + secondOperand
                 "-" -> firstOperand - secondOperand
                 "×" -> firstOperand * secondOperand
-                "÷" -> if (secondOperand != 0.0) firstOperand / secondOperand else 0.0
+                "÷" -> {
+                    if (secondOperand != 0.0) {
+                        firstOperand / secondOperand
+                    } else {
+                        Timber.w("Division by zero attempted")
+                        0.0
+                    }
+                }
                 else -> secondOperand
             }
 
             currentInput.clear()
-            currentInput.append(result.toString())
+            currentInput.append(formatResult(result))
             notifyResultChanged()
 
-            // Reset operation
+            // Сбрасываем операцию
             currentOperation = null
         }
     }
 
     /**
-     * Clears all input and operations.
+     * Форматирует результат для отображения.
+     * @param result Результат вычисления.
+     * @return Отформатированная строка.
+     */
+    private fun formatResult(result: Double): String {
+        return when {
+            result == result.toLong().toDouble() -> result.toLong().toString()
+            else -> {
+                // Ограничиваем количество десятичных знаков
+                val formattedResult = "%.${MAX_DECIMAL_PLACES}f".format(result)
+                // Удаляем конечные нули
+                formattedResult.replace(Regex("0+$"), "").replace(Regex("\\.$"), "")
+            }
+        }
+    }
+
+    /**
+     * Полностью очищает калькулятор.
      */
     fun clearAll() {
+        Timber.d("Clearing calculator")
         currentInput.clear()
         currentOperation = null
         firstOperand = 0.0
@@ -116,7 +191,7 @@ class Calculator(private val onResultChanged: (Double) -> Unit) {
     }
 
     /**
-     * Clears the last digit of the current input.
+     * Удаляет последний введенный символ.
      */
     fun clearLastDigit() {
         if (currentInput.isNotEmpty()) {
@@ -131,20 +206,21 @@ class Calculator(private val onResultChanged: (Double) -> Unit) {
     }
 
     /**
-     * Notifies that the result has changed based on the current input.
+     * Уведомляет о изменении результата на основе текущего ввода.
      */
     private fun notifyResultChanged() {
         try {
             val amount = currentInput.toString().toDoubleOrNull() ?: 0.0
             onResultChanged(amount)
         } catch (e: Exception) {
+            Timber.e(e, "Error parsing calculator input: ${currentInput}")
             onResultChanged(0.0)
         }
     }
 
     /**
-     * Notifies that the result has changed to a specific value.
-     * @param value The new result value.
+     * Уведомляет о изменении результата до конкретного значения.
+     * @param value Новое значение результата.
      */
     private fun notifyResultChanged(value: Double) {
         onResultChanged(value)

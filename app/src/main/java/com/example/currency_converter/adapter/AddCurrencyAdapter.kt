@@ -1,71 +1,83 @@
 package com.example.currency_converter.adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.currency_converter.R
+import com.example.currency_converter.databinding.ItemAddCurrencyBinding
 import com.example.currency_converter.model.Currency
 
-// Adapter for the add currency dialog
+/**
+ * Адаптер для диалога добавления/удаления валют.
+ * @param onCheckChanged Callback вызываемый при изменении состояния чекбокса.
+ */
 class AddCurrencyAdapter(
     private val onCheckChanged: (Currency, Boolean) -> Unit
 ) : ListAdapter<Currency, AddCurrencyAdapter.AddCurrencyViewHolder>(AddCurrencyDiffCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AddCurrencyViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_add_currency, parent, false)
-        return AddCurrencyViewHolder(view, onCheckChanged)
+        val binding = ItemAddCurrencyBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return AddCurrencyViewHolder(binding, onCheckChanged)
     }
 
     override fun onBindViewHolder(holder: AddCurrencyViewHolder, position: Int) {
-        val currency = getItem(position)
-        holder.bind(currency)
+        holder.bind(getItem(position))
     }
 
+    /**
+     * ViewHolder для элемента списка добавления валют.
+     */
     class AddCurrencyViewHolder(
-        itemView: View,
+        private val binding: ItemAddCurrencyBinding,
         private val onCheckChanged: (Currency, Boolean) -> Unit
-    ) : RecyclerView.ViewHolder(itemView) {
-        private val flagImageView: ImageView = itemView.findViewById(R.id.flagImageView)
-        private val codeTextView: TextView = itemView.findViewById(R.id.currencyCodeTextView)
-        private val nameTextView: TextView = itemView.findViewById(R.id.currencyNameTextView)
-        private val checkBox: CheckBox = itemView.findViewById(R.id.checkBox)
+    ) : RecyclerView.ViewHolder(binding.root) {
 
         private var currentCurrency: Currency? = null
 
         init {
-            checkBox.setOnCheckedChangeListener { _, isChecked ->
+            // Обработка изменения состояния чекбокса
+            binding.checkBox.setOnCheckedChangeListener { _, isChecked ->
                 currentCurrency?.let { onCheckChanged(it, isChecked) }
             }
 
-            // Make the entire item clickable to toggle checkbox
-            itemView.setOnClickListener {
-                checkBox.isChecked = !checkBox.isChecked
+            // Обработка клика по всему элементу для переключения чекбокса
+            binding.root.setOnClickListener {
+                binding.checkBox.isChecked = !binding.checkBox.isChecked
             }
         }
 
+        /**
+         * Привязывает данные валюты к элементам интерфейса.
+         */
         fun bind(currency: Currency) {
             currentCurrency = currency
 
-            flagImageView.setImageResource(currency.flagResId)
-            codeTextView.text = currency.code
-            nameTextView.text = currency.name
+            with(binding) {
+                // Загрузка изображения флага
+                flagImageView.setImageResource(currency.flagResId)
 
-            // Set checkbox state without triggering the listener
-            checkBox.setOnCheckedChangeListener(null)
-            checkBox.isChecked = currency.isSelected
-            checkBox.setOnCheckedChangeListener { _, isChecked ->
-                currentCurrency?.let { onCheckChanged(it, isChecked) }
+                // Установка текстовых полей
+                currencyCodeTextView.text = currency.code
+                currencyNameTextView.text = currency.name
+
+                // Установка состояния чекбокса без вызова слушателя
+                checkBox.setOnCheckedChangeListener(null)
+                checkBox.isChecked = currency.isSelected
+                checkBox.setOnCheckedChangeListener { _, isChecked ->
+                    currentCurrency?.let { onCheckChanged(it, isChecked) }
+                }
             }
         }
     }
 
+    /**
+     * DiffUtil для оптимизации обновлений списка.
+     */
     object AddCurrencyDiffCallback : DiffUtil.ItemCallback<Currency>() {
         override fun areItemsTheSame(oldItem: Currency, newItem: Currency): Boolean {
             return oldItem.code == newItem.code
