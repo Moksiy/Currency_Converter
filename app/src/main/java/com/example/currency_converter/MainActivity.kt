@@ -201,27 +201,28 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this, R.style.CurrencyDialogTheme)
         dialog.setContentView(R.layout.dialog_add_currency)
 
-        // Устанавливаем параметры окна
+        // Настраиваем параметры окна
         dialog.window?.apply {
-            // Используем MATCH_PARENT для ширины и WRAP_CONTENT для высоты
+            // Настраиваем размеры диалога
+            val displayMetrics = resources.displayMetrics
+            val width = (displayMetrics.widthPixels * 0.9).toInt() // 90% ширины экрана
+
             setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
+                width,
                 WindowManager.LayoutParams.WRAP_CONTENT
             )
 
-            // Устанавливаем полупрозрачный фон за диалогом
-            setDimAmount(0.5f)
+            // Устанавливаем затемнение фона (от 0.0f до 1.0f)
+            setDimAmount(0.6f)
 
             // Центрируем диалог
             setGravity(android.view.Gravity.CENTER)
 
-            // Устанавливаем отступы от краев экрана
-            attributes.apply {
-                horizontalMargin = 0.05f // 5% от ширины экрана с каждой стороны
-            }
-
             // Добавляем анимацию
-            attributes.windowAnimations = android.R.style.Animation_Dialog
+            attributes.windowAnimations = R.style.DialogAnimation
+
+            // Устанавливаем прозрачный фон окна (чтобы видны были только наши стили)
+            setBackgroundDrawableResource(android.R.color.transparent)
         }
 
         return dialog
