@@ -20,11 +20,17 @@ import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.view.animation.AccelerateInterpolator
+import android.view.ViewGroup
+import android.graphics.Color
+import android.widget.FrameLayout
+import androidx.core.content.ContextCompat
 
 /**
  * Главная активность приложения, которая отображает конвертер валют и калькулятор.
  */
 class MainActivity : AppCompatActivity() {
+    private lateinit var dimOverlay: View
     private lateinit var binding: ActivityMainBinding
     private val viewModel: CurrencyViewModel by viewModels()
     private lateinit var currencyAdapter: CurrencyAdapter
@@ -46,6 +52,31 @@ class MainActivity : AppCompatActivity() {
 
         // Запрашиваем обновление курсов при старте
         viewModel.fetchLatestRates()
+
+        // Создаем оверлей для затемнения
+        setupDimOverlay()
+    }
+
+    /**
+     * Настраивает затемнение фона
+     */
+    private fun setupDimOverlay() {
+        // Добавляем оверлей для затемнения
+        dimOverlay = View(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.parseColor("#80000000")) // 50% прозрачный черный
+            alpha = 0f
+            visibility = View.GONE
+
+            // Чтобы клики не проходили через затемнение
+            setOnClickListener { /* пустой обработчик, чтобы перехватывать клики */ }
+        }
+
+        // Добавляем оверлей в корневой контейнер приложения
+        (findViewById<View>(android.R.id.content) as ViewGroup).addView(dimOverlay)
     }
 
     /**
@@ -188,9 +219,32 @@ class MainActivity : AppCompatActivity() {
      * Показывает диалог добавления/удаления валют.
      */
     private fun showAddCurrencyDialog() {
+        // Показываем затемнение с анимацией
+        dimOverlay.visibility = View.VISIBLE
+        dimOverlay.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .setInterpolator(AccelerateInterpolator())
+            .start()
+
         val dialog = createAddCurrencyDialog()
         setupAddCurrencyDialogViews(dialog)
+
+        // Добавляем обработчик закрытия диалога
+        dialog.setOnDismissListener {
+            hideAddCurrencyDialog()
+        }
+
         dialog.show()
+    }
+
+    /**
+     * Скрывает затемнение после закрытия диалога
+     */
+    private fun hideAddCurrencyDialog() {
+        // Мгновенно скрываем затемнение
+        dimOverlay.visibility = View.GONE
+        dimOverlay.alpha = 0f
     }
 
     /**
@@ -212,8 +266,8 @@ class MainActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.WRAP_CONTENT
             )
 
-            // Устанавливаем затемнение фона (от 0.0f до 1.0f)
-            setDimAmount(0.6f)
+            // Убираем стандартное затемнение, так как у нас своё
+            setDimAmount(0f)
 
             // Центрируем диалог
             setGravity(android.view.Gravity.CENTER)
