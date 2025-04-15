@@ -7,57 +7,45 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.currency_converter.adapter.AddCurrencyAdapter
 import com.example.currency_converter.adapter.CurrencyAdapter
 import com.example.currency_converter.databinding.ActivityMainBinding
+import com.example.currency_converter.model.Calculator
 import com.example.currency_converter.viewmodel.CurrencyViewModel
+import com.google.android.material.button.MaterialButton
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.google.android.material.button.MaterialButton
-import androidx.appcompat.widget.SearchView
 
+/**
+ * Main activity that displays the currency converter and calculator.
+ */
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: CurrencyViewModel by viewModels()
     private lateinit var currencyAdapter: CurrencyAdapter
-
-    // Calculator variables
-    private var currentInput = StringBuilder()
-    private var currentOperation: String? = null
-    private var firstOperand: Double = 0.0
-    private var secondOperand: Double = 0.0
-    private var isOperationClicked = false
+    private val calculator = Calculator(onResultChanged = { result ->
+        viewModel.updateCurrencyAmount(result)
+    })
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Set up currency recycler view
         setupCurrencyRecyclerView()
-
-        // Set up calculator buttons
         setupCalculatorButtons()
-
-        // Set up other UI components
         setupUIComponents()
-
-        // Observe LiveData from ViewModel
         observeViewModel()
     }
 
     private fun setupCurrencyRecyclerView() {
         currencyAdapter = CurrencyAdapter { currency ->
-            // When a currency is clicked, set it as active for input
             viewModel.setActiveCurrency(currency.code)
-
-            // Clear calculator display and set current value
-            currentInput.clear()
-            currentInput.append(currency.amount.toString())
-            updateCalculatorDisplay()
+            calculator.setDisplay(currency.amount.toString())
         }
 
         binding.currencyRecyclerView.apply {
@@ -67,30 +55,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupCalculatorButtons() {
-        // Number buttons
-        binding.button0.setOnClickListener { appendDigit("0") }
-        binding.button1.setOnClickListener { appendDigit("1") }
-        binding.button2.setOnClickListener { appendDigit("2") }
-        binding.button3.setOnClickListener { appendDigit("3") }
-        binding.button4.setOnClickListener { appendDigit("4") }
-        binding.button5.setOnClickListener { appendDigit("5") }
-        binding.button6.setOnClickListener { appendDigit("6") }
-        binding.button7.setOnClickListener { appendDigit("7") }
-        binding.button8.setOnClickListener { appendDigit("8") }
-        binding.button9.setOnClickListener { appendDigit("9") }
-        binding.buttonDot.setOnClickListener { appendDot() }
+        with(binding) {
+            // Number buttons
+            button0.setOnClickListener { calculator.appendDigit("0") }
+            button1.setOnClickListener { calculator.appendDigit("1") }
+            button2.setOnClickListener { calculator.appendDigit("2") }
+            button3.setOnClickListener { calculator.appendDigit("3") }
+            button4.setOnClickListener { calculator.appendDigit("4") }
+            button5.setOnClickListener { calculator.appendDigit("5") }
+            button6.setOnClickListener { calculator.appendDigit("6") }
+            button7.setOnClickListener { calculator.appendDigit("7") }
+            button8.setOnClickListener { calculator.appendDigit("8") }
+            button9.setOnClickListener { calculator.appendDigit("9") }
+            buttonDot.setOnClickListener { calculator.appendDot() }
 
-        // Operation buttons
-        binding.buttonPlus.setOnClickListener { setOperation("+") }
-        binding.buttonMinus.setOnClickListener { setOperation("-") }
-        binding.buttonMultiply.setOnClickListener { setOperation("×") }
-        binding.buttonDivide.setOnClickListener { setOperation("÷") }
-        binding.buttonPercent.setOnClickListener { calculatePercent() }
-        binding.buttonEquals.setOnClickListener { calculateResult() }
+            // Operation buttons
+            buttonPlus.setOnClickListener { calculator.setOperation("+") }
+            buttonMinus.setOnClickListener { calculator.setOperation("-") }
+            buttonMultiply.setOnClickListener { calculator.setOperation("×") }
+            buttonDivide.setOnClickListener { calculator.setOperation("÷") }
+            buttonPercent.setOnClickListener { calculator.calculatePercent() }
+            buttonEquals.setOnClickListener { calculator.calculateResult() }
 
-        // Clear buttons
-        binding.buttonAC.setOnClickListener { clearAll() }
-        binding.buttonClear.setOnClickListener { clearLastDigit() }
+            // Clear buttons
+            buttonAC.setOnClickListener { calculator.clearAll() }
+            buttonClear.setOnClickListener { calculator.clearLastDigit() }
+        }
     }
 
     private fun setupUIComponents() {
@@ -101,12 +91,12 @@ class MainActivity : AppCompatActivity() {
 
         // Settings button
         binding.settingsButton.setOnClickListener {
-            Toast.makeText(this, "Settings coming soon!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.settings_coming_soon), Toast.LENGTH_SHORT).show()
         }
 
         // Update last update text
-        val dateFormat = SimpleDateFormat("MM/dd/yyyy, h:mm:ss a", Locale.getDefault())
-        binding.lastUpdateTextView.text = "Last update: ${dateFormat.format(Date())}"
+        val dateFormat = SimpleDateFormat(getString(R.string.date_format), Locale.getDefault())
+        binding.lastUpdateTextView.text = getString(R.string.last_update_format, dateFormat.format(Date()))
     }
 
     private fun observeViewModel() {
@@ -122,176 +112,79 @@ class MainActivity : AppCompatActivity() {
 
         // Observe errors
         viewModel.error.observe(this) { errorMessage ->
-            if (errorMessage.isNotEmpty()) {
-                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+            errorMessage?.takeIf { it.isNotEmpty() }?.let {
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+                viewModel.clearError()
             }
         }
     }
 
-    // Calculator functions
-    private fun appendDigit(digit: String) {
-        if (isOperationClicked) {
-            currentInput.clear()
-            isOperationClicked = false
-        }
-
-        currentInput.append(digit)
-        updateCalculatorDisplay()
-    }
-
-    private fun appendDot() {
-        if (isOperationClicked) {
-            currentInput.clear()
-            currentInput.append("0")
-            isOperationClicked = false
-        }
-
-        if (!currentInput.contains(".")) {
-            if (currentInput.isEmpty()) {
-                currentInput.append("0")
-            }
-            currentInput.append(".")
-            updateCalculatorDisplay()
-        }
-    }
-
-    private fun setOperation(operation: String) {
-        if (currentInput.isNotEmpty()) {
-            firstOperand = currentInput.toString().toDouble()
-            currentOperation = operation
-            isOperationClicked = true
-        }
-    }
-
-    private fun calculatePercent() {
-        if (currentInput.isNotEmpty()) {
-            val currentValue = currentInput.toString().toDouble()
-            val result = currentValue / 100
-            currentInput.clear()
-            currentInput.append(result.toString())
-            updateCalculatorDisplay()
-        }
-    }
-
-    private fun calculateResult() {
-        if (currentInput.isNotEmpty() && currentOperation != null) {
-            secondOperand = currentInput.toString().toDouble()
-
-            val result = when (currentOperation) {
-                "+" -> firstOperand + secondOperand
-                "-" -> firstOperand - secondOperand
-                "×" -> firstOperand * secondOperand
-                "÷" -> if (secondOperand != 0.0) firstOperand / secondOperand else 0.0
-                else -> secondOperand
-            }
-
-            currentInput.clear()
-            currentInput.append(result.toString())
-            updateCalculatorDisplay()
-
-            // Update currency amounts
-            viewModel.updateCurrencyAmount(result)
-
-            // Reset operation
-            currentOperation = null
-        }
-    }
-
-    private fun clearAll() {
-        currentInput.clear()
-        currentOperation = null
-        firstOperand = 0.0
-        secondOperand = 0.0
-        isOperationClicked = false
-        updateCalculatorDisplay()
-
-        // Also clear currency amounts
-        viewModel.updateCurrencyAmount(0.0)
-    }
-
-    private fun clearLastDigit() {
-        if (currentInput.isNotEmpty()) {
-            currentInput.deleteCharAt(currentInput.length - 1)
-            updateCalculatorDisplay()
-
-            // If we still have a number, update currency
-            if (currentInput.isNotEmpty()) {
-                try {
-                    val amount = currentInput.toString().toDouble()
-                    viewModel.updateCurrencyAmount(amount)
-                } catch (e: Exception) {
-                    // If we can't parse it (e.g., just a decimal point), ignore
-                }
-            } else {
-                // If input is now empty, set amount to 0
-                viewModel.updateCurrencyAmount(0.0)
-            }
-        }
-    }
-
-    private fun updateCalculatorDisplay() {
-        // We don't have a display in our calculator, but we update the amount
-        // in the active currency instead
-        if (currentInput.isNotEmpty()) {
-            try {
-                val amount = currentInput.toString().toDouble()
-                viewModel.updateCurrencyAmount(amount)
-            } catch (e: Exception) {
-                // Handle parsing error
-            }
-        } else {
-            viewModel.updateCurrencyAmount(0.0)
-        }
-    }
-
-    // Add currency dialog
     private fun showAddCurrencyDialog() {
+        val dialog = createAddCurrencyDialog()
+        setupAddCurrencyDialogViews(dialog)
+        dialog.show()
+    }
+
+    private fun createAddCurrencyDialog(): Dialog {
         val dialog = Dialog(this)
         dialog.setContentView(R.layout.dialog_add_currency)
 
-        // Настройка ширины диалога
-        val window = dialog.window
-        window?.setLayout(
+        // Set dialog width
+        dialog.window?.setLayout(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT
         )
 
+        return dialog
+    }
+
+    private fun setupAddCurrencyDialogViews(dialog: Dialog) {
         val recyclerView: RecyclerView = dialog.findViewById(R.id.addCurrencyRecyclerView)
-        val searchView: androidx.appcompat.widget.SearchView = dialog.findViewById(R.id.searchView)
+        val searchView: SearchView = dialog.findViewById(R.id.searchView)
         val confirmButton: MaterialButton = dialog.findViewById(R.id.buttonConfirm)
 
-        // Get all available currencies
-        val allCurrencies = viewModel.availableCurrencies.value ?: emptyList()
+        setupAddCurrencyRecyclerView(recyclerView)
+        setupAddCurrencySearch(searchView, recyclerView.adapter as AddCurrencyAdapter)
 
-        // Create adapter for add currency dialog
+        confirmButton.setOnClickListener {
+            dialog.dismiss()
+        }
+    }
+
+    private fun setupAddCurrencyRecyclerView(recyclerView: RecyclerView) {
+        val allCurrencies = viewModel.availableCurrencies.value.orEmpty()
+
         val adapter = AddCurrencyAdapter { currency, isChecked ->
-            if (isChecked) {
-                viewModel.addCurrency(currency.code)
-            } else {
-                viewModel.removeCurrency(currency.code)
-            }
+            if (isChecked) viewModel.addCurrency(currency.code)
+            else viewModel.removeCurrency(currency.code)
         }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
-        // Set initial data - обновляем состояние isSelected в соответствии с текущим выбором
+        // Update selection state according to current selection
         val updatedCurrencies = allCurrencies.map { currency ->
             currency.copy(isSelected = viewModel.isCurrencySelected(currency.code))
         }
         adapter.submitList(updatedCurrencies)
+    }
 
-        // Set up search
+    private fun setupAddCurrencySearch(
+        searchView: SearchView,
+        adapter: AddCurrencyAdapter
+    ) {
+        val allCurrencies = viewModel.availableCurrencies.value.orEmpty().map { currency ->
+            currency.copy(isSelected = viewModel.isCurrencySelected(currency.code))
+        }
+
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
-            }
+            override fun onQueryTextSubmit(query: String?): Boolean = false
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (newText.isNullOrEmpty()) {
-                    adapter.submitList(updatedCurrencies)
+                    adapter.submitList(allCurrencies)
                 } else {
-                    val filteredList = updatedCurrencies.filter { currency ->
+                    val filteredList = allCurrencies.filter { currency ->
                         currency.code.contains(newText, ignoreCase = true) ||
                                 currency.name.contains(newText, ignoreCase = true)
                     }
@@ -300,12 +193,5 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         })
-
-        // Настройка кнопки подтверждения
-        confirmButton.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
     }
 }
