@@ -2,10 +2,8 @@ package com.example.currency_converter
 
 import android.app.Dialog
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
+import android.view.WindowManager
 import android.view.View
-import android.widget.SearchView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -14,11 +12,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.currency_converter.adapter.AddCurrencyAdapter
 import com.example.currency_converter.adapter.CurrencyAdapter
 import com.example.currency_converter.databinding.ActivityMainBinding
-import com.example.currency_converter.model.Currency
 import com.example.currency_converter.viewmodel.CurrencyViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.google.android.material.button.MaterialButton
+import androidx.appcompat.widget.SearchView
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -250,8 +249,16 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.setContentView(R.layout.dialog_add_currency)
 
-        val recyclerView = dialog.findViewById<RecyclerView>(R.id.addCurrencyRecyclerView)
-        val searchView = dialog.findViewById<SearchView>(R.id.searchView)
+        // Настройка ширины диалога
+        val window = dialog.window
+        window?.setLayout(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT
+        )
+
+        val recyclerView: RecyclerView = dialog.findViewById(R.id.addCurrencyRecyclerView)
+        val searchView: androidx.appcompat.widget.SearchView = dialog.findViewById(R.id.searchView)
+        val confirmButton: MaterialButton = dialog.findViewById(R.id.buttonConfirm)
 
         // Get all available currencies
         val allCurrencies = viewModel.availableCurrencies.value ?: emptyList()
@@ -268,8 +275,11 @@ class MainActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
-        // Set initial data
-        adapter.submitList(allCurrencies)
+        // Set initial data - обновляем состояние isSelected в соответствии с текущим выбором
+        val updatedCurrencies = allCurrencies.map { currency ->
+            currency.copy(isSelected = viewModel.isCurrencySelected(currency.code))
+        }
+        adapter.submitList(updatedCurrencies)
 
         // Set up search
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -279,9 +289,9 @@ class MainActivity : AppCompatActivity() {
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (newText.isNullOrEmpty()) {
-                    adapter.submitList(allCurrencies)
+                    adapter.submitList(updatedCurrencies)
                 } else {
-                    val filteredList = allCurrencies.filter { currency ->
+                    val filteredList = updatedCurrencies.filter { currency ->
                         currency.code.contains(newText, ignoreCase = true) ||
                                 currency.name.contains(newText, ignoreCase = true)
                     }
@@ -290,6 +300,11 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         })
+
+        // Настройка кнопки подтверждения
+        confirmButton.setOnClickListener {
+            dialog.dismiss()
+        }
 
         dialog.show()
     }
