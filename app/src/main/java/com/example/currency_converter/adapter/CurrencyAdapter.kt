@@ -95,32 +95,32 @@ class CurrencyAdapter(
                 try {
                     formatter.currency = JavaCurrency.getInstance(currency.code)
                 } catch (e: IllegalArgumentException) {
-                    // Если код валюты не поддерживается, используем символ из нашей модели
                     Timber.e(e, "Unsupported currency code: ${currency.code}")
                 }
                 val formattedAmount = formatter.format(currency.amount)
                 currencyAmountTextView.text = formattedAmount
 
                 // Визуальное выделение активной валюты
-                if (isActive) {
-                    // Задаем фон для CardView
-                    (root.parent as? com.google.android.material.card.MaterialCardView)?.apply {
-                        setCardBackgroundColor(ContextCompat.getColor(root.context, R.color.selected_item_bg))
-                        setStrokeWidth(2)
-                        setStrokeColor(ContextCompat.getColor(root.context, R.color.primary))
+                val cardView = itemView as? com.google.android.material.card.MaterialCardView
+                if (cardView != null) {
+                    if (isActive) {
+                        // Делаем контур более заметным
+                        cardView.strokeWidth = 2  // Увеличиваем толщину до 4dp
+                        cardView.strokeColor = ContextCompat.getColor(root.context, R.color.primary)
+                        cardView.setCardBackgroundColor(ContextCompat.getColor(root.context, R.color.selected_item_bg))
+
+                        currencyCodeTextView.setTypeface(null, Typeface.BOLD)
+                        currencyAmountTextView.setTypeface(null, Typeface.BOLD)
+                        currencyAmountTextView.setTextColor(ContextCompat.getColor(root.context, R.color.primary))
+                    } else {
+                        // Сбрасываем стили
+                        cardView.strokeWidth = 0
+                        cardView.setCardBackgroundColor(ContextCompat.getColor(root.context, R.color.white))
+
+                        currencyCodeTextView.setTypeface(null, Typeface.NORMAL)
+                        currencyAmountTextView.setTypeface(null, Typeface.NORMAL)
+                        currencyAmountTextView.setTextColor(ContextCompat.getColor(root.context, R.color.black))
                     }
-                    currencyCodeTextView.setTypeface(null, Typeface.BOLD)
-                    currencyAmountTextView.setTypeface(null, Typeface.BOLD)
-                    currencyAmountTextView.setTextColor(ContextCompat.getColor(root.context, R.color.primary))
-                } else {
-                    // Сбрасываем фон для CardView
-                    (root.parent as? com.google.android.material.card.MaterialCardView)?.apply {
-                        setCardBackgroundColor(ContextCompat.getColor(root.context, R.color.white))
-                        setStrokeWidth(0)
-                    }
-                    currencyCodeTextView.setTypeface(null, Typeface.NORMAL)
-                    currencyAmountTextView.setTypeface(null, Typeface.NORMAL)
-                    currencyAmountTextView.setTextColor(ContextCompat.getColor(root.context, R.color.black))
                 }
             }
         }
