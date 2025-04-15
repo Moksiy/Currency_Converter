@@ -3,7 +3,7 @@
     <!-- MainActivity -->
     <string name="settings_coming_soon">Settings coming soon!</string>
     <string name="date_format">MM/dd/yyyy, h:mm:ss a</string>
-    <string name="last_update_format">Last update: %1$s</string>
+    <string name="last_update_format">Last rates update: %1$s</string>
     <string name="active_currency_message">%1$s is now the active currency</string>
     <string name="removing_active_currency">You are removing the active currency. A different one will be selected.</string>
 
