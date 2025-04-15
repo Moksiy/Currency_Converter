@@ -104,8 +104,8 @@ class MainActivity : AppCompatActivity() {
         binding.currencyRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = currencyAdapter
-            // Добавляем анимацию при изменении элементов
-            itemAnimator?.changeDuration = 150
+            itemAnimator?.changeDuration = 0
+            //itemAnimator?.changeDuration = 150
         }
     }
 
@@ -324,8 +324,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
         recyclerView.adapter = adapter
+        //recyclerView.itemAnimator = null
 
         // Обновляем состояние выбора в соответствии с текущим выбором
         val updatedCurrencies = allCurrencies.map { currency ->
