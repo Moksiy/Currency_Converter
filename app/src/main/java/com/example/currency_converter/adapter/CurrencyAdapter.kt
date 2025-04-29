@@ -1,70 +1,157 @@
 package com.example.currency_converter.adapter
 
+import android.graphics.Typeface
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
-import android.widget.ImageView
-import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.currency_converter.R
+import com.example.currency_converter.databinding.ItemCurrencyBinding
 import com.example.currency_converter.model.Currency
+import java.text.NumberFormat
+import java.util.Currency as JavaCurrency
+import java.util.Locale
+import timber.log.Timber
 
-// Adapter for the main currency list
+/**
+ * Адаптер для основного списка валют.
+ * @param onItemClicked Callback вызываемый при выборе валюты.
+ */
 class CurrencyAdapter(
     private val onItemClicked: (Currency) -> Unit
 ) : ListAdapter<Currency, CurrencyAdapter.CurrencyViewHolder>(CurrencyDiffCallback) {
 
+    // Код активной валюты для визуального выделения
+    private var activeCurrencyCode: String? = null
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CurrencyViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_currency, parent, false)
-        return CurrencyViewHolder(view, onItemClicked)
+        val binding = ItemCurrencyBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return CurrencyViewHolder(binding, onItemClicked)
     }
 
     override fun onBindViewHolder(holder: CurrencyViewHolder, position: Int) {
         val currency = getItem(position)
-        holder.bind(currency)
+        val isActive = currency.code == activeCurrencyCode
+        holder.bind(currency, isActive)
     }
 
+    /**
+     * Устанавливает код активной валюты и обновляет UI.
+     * @param currencyCode Код активной валюты.
+     */
+    fun setActiveCurrency(currencyCode: String) {
+        val oldActiveCode = activeCurrencyCode
+        activeCurrencyCode = currencyCode
+
+        // Обновляем только изменившиеся элементы для оптимизации
+        val currentList = currentList
+        currentList.forEachIndexed { index, currency ->
+            if (currency.code == oldActiveCode || currency.code == currencyCode) {
+                notifyItemChanged(index)
+            }
+        }
+    }
+
+    /**
+     * ViewHolder для элемента валюты в основном списке.
+     */
     class CurrencyViewHolder(
-        itemView: View,
+        private val binding: ItemCurrencyBinding,
         private val onItemClicked: (Currency) -> Unit
-    ) : RecyclerView.ViewHolder(itemView) {
-        private val flagImageView: ImageView = itemView.findViewById(R.id.flagImageView)
-        private val codeTextView: TextView = itemView.findViewById(R.id.currencyCodeTextView)
-        private val nameTextView: TextView = itemView.findViewById(R.id.currencyNameTextView)
-        private val amountTextView: TextView = itemView.findViewById(R.id.currencyAmountTextView)
+    ) : RecyclerView.ViewHolder(binding.root) {
 
         private var currentCurrency: Currency? = null
 
         init {
-            itemView.setOnClickListener {
+            binding.root.setOnClickListener {
                 currentCurrency?.let { onItemClicked(it) }
             }
         }
 
-        fun bind(currency: Currency) {
+        /**
+         * Привязывает данные валюты к элементам интерфейса.
+         * @param currency Объект валюты для отображения.
+         * @param isActive Флаг активности валюты для визуального выделения.
+         */
+        fun bind(currency: Currency, isActive: Boolean) {
             currentCurrency = currency
 
-            flagImageView.setImageResource(currency.flagResId)
-            codeTextView.text = currency.code
-            nameTextView.text = currency.name
+            with(binding) {
+                // Установка изображения флага
+                flagImageView.setImageResource(currency.flagResId)
 
-            // Format amount with the currency symbol
-            val formattedAmount = "${currency.symbol} ${String.format("%,.2f", currency.amount)}"
-            amountTextView.text = formattedAmount
+                // Установка кода и названия валюты
+                currencyCodeTextView.text = currency.code
+                currencyNameTextView.text = currency.name
+
+                // Форматирование суммы с символом валюты
+                val formatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
+                try {
+                    formatter.currency = JavaCurrency.getInstance(currency.code)
+                } catch (e: IllegalArgumentException) {
+                    Timber.e(e, "Unsupported currency code: ${currency.code}")
+                }
+                val formattedAmount = formatter.format(currency.amount)
+                currencyAmountTextView.text = formattedAmount
+
+                // Визуальное выделение активной валюты
+                val cardView = itemView as? com.google.android.material.card.MaterialCardView
+                if (cardView != null) {
+                    if (isActive) {
+                        // Делаем контур более заметным
+                        cardView.strokeWidth = 2  // Увеличиваем толщину до 4dp
+                        cardView.strokeColor = ContextCompat.getColor(root.context, R.color.primary)
+                        cardView.setCardBackgroundColor(ContextCompat.getColor(root.context, R.color.selected_item_bg))
+
+                        currencyCodeTextView.setTypeface(null, Typeface.BOLD)
+                        currencyAmountTextView.setTypeface(null, Typeface.BOLD)
+                        currencyAmountTextView.setTextColor(ContextCompat.getColor(root.context, R.color.primary))
+                    } else {
+                        // Сбрасываем стили
+                        cardView.strokeWidth = 0
+                        cardView.setCardBackgroundColor(ContextCompat.getColor(root.context, R.color.white))
+
+                        currencyCodeTextView.setTypeface(null, Typeface.NORMAL)
+                        currencyAmountTextView.setTypeface(null, Typeface.NORMAL)
+                        currencyAmountTextView.setTextColor(ContextCompat.getColor(root.context, R.color.black))
+                    }
+                }
+            }
         }
     }
 
+    /**
+     * Обновляет конкретную валюту в списке.
+     * @param updatedCurrency Обновленный объект валюты.
+     */
+    fun updateCurrency(updatedCurrency: Currency) {
+        val currentItems = currentList.toMutableList()
+        val position = currentItems.indexOfFirst { it.code == updatedCurrency.code }
+
+        if (position != -1) {
+            currentItems[position] = updatedCurrency
+            submitList(currentItems)
+        }
+    }
+
+    /**
+     * DiffUtil для оптимизации обновлений списка.
+     */
     object CurrencyDiffCallback : DiffUtil.ItemCallback<Currency>() {
         override fun areItemsTheSame(oldItem: Currency, newItem: Currency): Boolean {
             return oldItem.code == newItem.code
         }
 
         override fun areContentsTheSame(oldItem: Currency, newItem: Currency): Boolean {
-            return oldItem == newItem
+            return oldItem.code == newItem.code &&
+                    oldItem.amount == newItem.amount &&
+                    oldItem.isSelected == newItem.isSelected
         }
     }
 }

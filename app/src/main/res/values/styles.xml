@@ -14,22 +14,46 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
     </style>
 
-    <!-- Calculator button style -->
-    <style name="CalculatorButton">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">64dp</item>
-        <item name="android:layout_weight">1</item>
-        <item name="android:textSize">24sp</item>
-        <item name="android:background">@android:color/white</item>
-        <item name="android:textColor">@android:color/black</item>
-        <item name="android:stateListAnimator">@null</item>
-        <item name="backgroundTint">@android:color/white</item>
-        <item name="cornerRadius">0dp</item>
+    <!-- Base application theme -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Customize your theme here -->
+        <item name="colorPrimary">#673AB7</item>
+        <item name="colorPrimaryDark">#512DA8</item>
+        <item name="colorAccent">#FF4081</item>
     </style>
 
-    <!-- Calculator operation button style -->
+    <!-- Стиль для диалога добавления валют -->
+    <style name="CurrencyDialogTheme" parent="Theme.AppCompat.Light.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowCloseOnTouchOutside">true</item>
+        <item name="android:windowAnimationStyle">@style/DialogAnimation</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+    </style>
+
+    <!-- Анимация для диалога -->
+    <style name="DialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/dialog_exit</item>
+    </style>
+
+    <style name="CalculatorButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">60dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:background">@drawable/calculator_button_background</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:elevation">2dp</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+
     <style name="CalculatorButtonOperation" parent="CalculatorButton">
-        <item name="backgroundTint">@color/calculator_blue</item>
-        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textColor">#2196F3</item>
+        <item name="android:background">@drawable/calculator_op_button_background</item>
     </style>
 </resources>

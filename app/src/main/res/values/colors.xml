@@ -8,4 +8,8 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="calculator_blue">#0277BD</color>
+    <color name="primary">#6200EE</color>
+    <color name="light_gray">#EEEEEE</color>
+    <color name="text_primary">#212121</color>
+    <color name="selected_item_bg">#E8E4F3</color>
 </resources>

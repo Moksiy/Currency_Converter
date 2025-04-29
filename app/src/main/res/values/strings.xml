@@ -1,3 +1,30 @@
 <resources>
     <string name="app_name">Currency_Converter</string>
+    <!-- MainActivity -->
+    <string name="settings_coming_soon">Settings coming soon!</string>
+    <string name="date_format">MM/dd/yyyy, h:mm:ss a</string>
+    <string name="last_update_format">Last rates update: %1$s</string>
+    <string name="active_currency_message">%1$s is now the active currency</string>
+    <string name="removing_active_currency">You are removing the active currency. A different one will be selected.</string>
+
+    <!-- Calculator -->
+    <string name="calc_clear">AC</string>
+    <string name="calc_backspace">⌫</string>
+    <string name="calc_percent">%</string>
+    <string name="calc_divide">÷</string>
+    <string name="calc_multiply">×</string>
+    <string name="calc_minus">-</string>
+    <string name="calc_plus">+</string>
+    <string name="calc_equals">=</string>
+    <string name="calc_decimal">.</string>
+
+    <!-- Error messages -->
+    <string name="error_loading_currencies">Failed to load currencies</string>
+    <string name="error_conversion">Error during conversion</string>
+    <string name="error_last_currency">Cannot remove the last currency</string>
+
+    <!-- Add currency dialog -->
+    <string name="add_currency_title">Select Currencies</string>
+    <string name="search_hint">Search currencies…</string>
+    <string name="confirm">Confirm</string>
 </resources>

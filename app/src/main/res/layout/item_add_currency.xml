@@ -5,12 +5,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="8dp">
+    android:paddingVertical="8dp"
+    android:stateListAnimator="@null">
 
     <ImageView
         android:id="@+id/flagImageView"
-        android:layout_width="24dp"
-        android:layout_height="18dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:scaleType="fitXY"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
